@@ -151,12 +151,27 @@ PROJECTS
 
 PROGRAMMING SKILLS
 Languages: Python, JavaScript, Typescript, C++, Terraform, Bash, SQL, CSS, HTML, Kubectl
-Technologies: AWS, React.js, Node.js, Langchain and Langraph, crew-ai, flowise, N8N, End-to-End SDLC, troubleshooting, LLD, HLD, Data structure and Algorithm, Docker, Kubernetes, MongoDB, Jenkins CICD, Harness CICD, Linux, AWS Lambda, S3, SNS, SQS, DocumentDB, Aurora, Elasticache-Redis, EKS, Cloudwatch, Terraform, Ansible, Dynatrace, Splunk, Serverless functions, Disaster recovery architecture</textarea>
+Technologies: AWS, React.js, Node.js, Langchain and Langraph, Google Vertex AI, AWS Bedrock, Gemini, Claude, AWS Amplify crew-ai, flowise, N8N, End-to-End SDLC, troubleshooting, LLD, HLD, Data structure and Algorithm, Docker, Kubernetes, MongoDB, Jenkins CICD, Harness CICD, Linux, AWS Lambda, S3, SNS, SQS, DocumentDB, Aurora, Elasticache-Redis, EKS, Cloudwatch, Terraform, Ansible, Dynatrace, Splunk, Serverless functions, Disaster recovery architecture, Hallucination mitigation</textarea>
   </div>
 
   <div style="margin-bottom:20px">
     <div class="section-label">Job Description</div>
     <textarea id="jd" rows="10" placeholder="Paste the full job description here..."></textarea>
+  </div>
+
+  <div style="margin-bottom:20px;display:flex;gap:12px">
+    <div style="flex:1">
+      <div class="section-label">Company Name</div>
+      <input id="company" type="text" placeholder="e.g. Google" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--ink1);outline:none">
+    </div>
+    <div style="flex:1">
+      <div class="section-label">Job Title</div>
+      <input id="jobTitle" type="text" placeholder="e.g. Software Engineer" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--ink1);outline:none">
+    </div>
+    <div style="flex:1">
+      <div class="section-label">Job ID</div>
+      <input id="jobId" type="text" placeholder="e.g. JD12345" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--ink1);outline:none">
+    </div>
   </div>
 
   <button class="btn btn-primary" id="generateBtn" onclick="generate()">
@@ -423,9 +438,13 @@ function renderOutput(data) {
 function downloadPDF() {
   const el = document.getElementById('resumeOut');
   if (!el || !el.innerHTML.trim()) return;
+  const company = (document.getElementById('company').value.trim() || 'Company').replace(/\s+/g, '-');
+  const role = (document.getElementById('jobTitle').value.trim() || 'Role').replace(/\s+/g, '-');
+  const jobId = document.getElementById('jobId').value.trim().replace(/\s+/g, '-');
+  const filename = jobId ? `Sanjay-${company}-${role}-${jobId}.pdf` : `Sanjay-${company}-${role}.pdf`;
   html2pdf().set({
     margin: [10, 14],
-    filename: 'resume_tailored.pdf',
+    filename,
     html2canvas: { scale: 2, useCORS: true },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['css', 'legacy'] }
