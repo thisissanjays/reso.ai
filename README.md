@@ -70,6 +70,8 @@ Navigate to: http://localhost:3000
 |---|---|---|---|
 | `GEMINI_API_KEY` | Yes | — | Your Gemini API key from aistudio.google.com |
 | `PORT` | No | `3000` | Port the Express server listens on |
+| `TURSO_DATABASE_URL` | No (production only) | — | Hosted libSQL/Turso database URL. If unset, falls back to a local SQLite file at `data/history.db` — fine for local dev, but **required on hosts with an ephemeral filesystem (e.g. Render's free tier)**, since local files don't survive a redeploy/restart there. |
+| `TURSO_AUTH_TOKEN` | No (production only) | — | Auth token for the Turso database above. Required whenever `TURSO_DATABASE_URL` is set. |
 
 ---
 
