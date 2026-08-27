@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const path = require("path");
+const db = require("./db");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,6 +16,29 @@ app.use(express.static(path.join(__dirname, "../public")));
 // Gemini client — API key stays server-side only
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// Gemini occasionally returns transient 503 ("high demand") / 429 (rate limit)
+// errors, or — since 2.5 Flash spends part of maxOutputTokens on internal
+// "thinking" before the actual answer — gets cut off mid-JSON on longer
+// thinking passes, which surfaces as a JSON.parse SyntaxError. Retry the
+// whole call+parse unit a couple of times with backoff on either failure
+// mode, so the user isn't the one manually retrying on a blip.
+async function generateWithRetry(fn, maxRetries = 2) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const transient =
+        err instanceof SyntaxError || /\b(429|500|503)\b/.test(err.message || "");
+      if (!transient || attempt === maxRetries) throw err;
+      const delay = 1000 * Math.pow(2, attempt);
+      console.warn(
+        `Gemini call failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms: ${err.message}`,
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
+
 // Health check
 app.get("/api/health", (req, res) => {
   const keySet =
@@ -25,12 +49,17 @@ app.get("/api/health", (req, res) => {
 
 // Main resume generation endpoint
 app.post("/api/generate", async (req, res) => {
-  const { profile, jd } = req.body;
+  const { jd, company, jobTitle, jobId } = req.body;
+  const { master_profile: profile } = db.getProfile();
 
-  if (!profile || !jd) {
+  if (!profile) {
     return res
       .status(400)
-      .json({ error: "Both profile and job description are required." });
+      .json({ error: "Please save your profile in the Profile tab before generating." });
+  }
+
+  if (!jd) {
+    return res.status(400).json({ error: "A job description is required." });
   }
 
   if (
@@ -87,15 +116,22 @@ Respond with ONLY a valid JSON object (no markdown, no backticks) with this exac
   ]
 }`;
 
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        maxOutputTokens: 8192,
-        responseMimeType: "application/json",
-      },
+    const parsed = await generateWithRetry(async () => {
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          maxOutputTokens: 8192,
+          responseMimeType: "application/json",
+        },
+      });
+      return JSON.parse(result.response.text());
     });
-    const raw = result.response.text();
-    const parsed = JSON.parse(raw);
+
+    try {
+      db.upsertResume({ company, jobTitle, jobId, profile, jd, resumeData: parsed });
+    } catch (dbErr) {
+      console.error("History write error (resume):", dbErr.message);
+    }
 
     res.json(parsed);
   } catch (err) {
@@ -104,6 +140,140 @@ Respond with ONLY a valid JSON object (no markdown, no backticks) with this exac
       .status(500)
       .json({ error: "Failed to generate resume. " + err.message });
   }
+});
+
+// Cover letter generation endpoint
+app.post("/api/generate-cover-letter", async (req, res) => {
+  const { jd, company, jobTitle, jobId, recruiterName, recruiterTitle } = req.body;
+  const { master_profile: profile } = db.getProfile();
+
+  if (!profile) {
+    return res
+      .status(400)
+      .json({ error: "Please save your profile in the Profile tab before generating." });
+  }
+
+  if (!jd) {
+    return res.status(400).json({ error: "A job description is required." });
+  }
+
+  if (
+    !process.env.GEMINI_API_KEY ||
+    process.env.GEMINI_API_KEY === "your_gemini_api_key_here"
+  ) {
+    return res.status(500).json({
+      error: "API key not configured. Please add it to your .env file.",
+    });
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+    const prompt = `You are an expert career coach writing a tailored, ATS-friendly cover letter body.
+
+CANDIDATE PROFILE:
+${profile}
+
+JOB DESCRIPTION:
+${jd}
+
+RECIPIENT:
+- Recruiter name: ${recruiterName || "Hiring Manager"}
+- Recruiter title: ${recruiterTitle || "(not provided)"}
+- Company: ${company || "(not provided)"}
+- Role: ${jobTitle || "(not provided)"}
+
+RULES:
+- Do NOT use any markdown formatting (no **, no *, no #, no bullet points). Plain prose paragraphs only.
+- Do NOT include a salutation ("Dear ...") or a sign-off ("Sincerely, ..."). Those are added separately — respond with ONLY the body paragraphs.
+- Write 3-4 short paragraphs, ~250-400 words total, sized to fit one page.
+- Do NOT quote, paraphrase, or reuse the job description's own marketing language, mission statements, taglines, or buzzwords back at the company (e.g. if the JD talks about "inflection points," "frontier models," or "quantifiable outcomes," do not repeat those phrases). This includes generic-sounding phrases lifted straight from the JD, like "complex business challenges" — if a 3+ word phrase appears in the JD, do not reuse it verbatim even if it sounds like ordinary English. Write in the candidate's own voice about their own work, not the company's about itself.
+- NEVER use any of these exact words/phrases anywhere in the letter, in any form: "Furthermore", "In addition", "Additionally", "Moreover", "align" / "aligns" / "alignment", "leverage" / "leveraging", "demonstrates" / "highlights my" / "reflects" / "showcases", "eager" / "excited", "passionate", "confident that", "perfect fit", "proven track record", "significant impact", "drive success", "mission" (when referring to the company's mission). If a sentence needs one of these to make sense, rewrite the sentence around a concrete detail instead — do not substitute a synonym that means the same thing.
+- Do NOT explicitly state that an accomplishment is relevant, e.g. "this shows I can..." or "this experience prepares me to...". Describe the work concretely and stop the sentence there — do not add a trailing clause explaining why it matters. Trust the reader to connect it themselves.
+- Ground every claim in one concrete detail already in the candidate profile — a real tool, a real number, a real project name. No paragraph should end on a vague, generic claim with no specific detail in it.
+- Vary sentence openings and structure across paragraphs — do not repeat the same "During my time at X, I did Y, resulting in Z" shape more than once.
+- Paragraph 1: open with something specific and concrete from the candidate's background — not a restatement of the job title or the company's mission.
+- Paragraph 2-3: cite 2-3 concrete, truthful qualifications/achievements pulled from the candidate profile, using JD terminology only where it fits naturally. Do not invent employers, titles, or metrics not present in the profile.
+- Final paragraph: 2-3 sentences. State one specific, genuine reason the role itself is interesting (not the company's mission/vision/focus — the reader already knows what their own company does), and stop. No generic enthusiasm language, no restating the company's self-description.
+- Separate paragraphs with a blank line (\\n\\n).
+
+Respond with ONLY a valid JSON object (no markdown, no backticks) with this exact structure:
+{ "letter_body": "<paragraph text with \\n\\n between paragraphs>" }`;
+
+    const parsed = await generateWithRetry(async () => {
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          maxOutputTokens: 4096,
+          responseMimeType: "application/json",
+        },
+      });
+      return JSON.parse(result.response.text());
+    });
+
+    try {
+      db.upsertCoverLetter({
+        company,
+        jobTitle,
+        jobId,
+        profile,
+        jd,
+        recruiterName,
+        recruiterTitle,
+        letterBody: parsed.letter_body,
+      });
+    } catch (dbErr) {
+      console.error("History write error (cover letter):", dbErr.message);
+    }
+
+    res.json(parsed);
+  } catch (err) {
+    console.error("Gemini API error (cover letter):", err.message);
+    res
+      .status(500)
+      .json({ error: "Failed to generate cover letter. " + err.message });
+  }
+});
+
+// Application history endpoints
+app.get("/api/history", (req, res) => {
+  res.json({ applications: db.listApplications() });
+});
+
+app.get("/api/history/:id", (req, res) => {
+  const app_ = db.getApplication(req.params.id);
+  if (!app_) return res.status(404).json({ error: "Not found" });
+  res.json(app_);
+});
+
+app.patch("/api/history/:id", (req, res) => {
+  const { status, notes } = req.body;
+  try {
+    const updated = db.updateApplication(req.params.id, { status, notes });
+    if (!updated) return res.status(404).json({ error: "Not found" });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Profile settings endpoints
+app.get("/api/profile", (req, res) => {
+  res.json(db.getProfile());
+});
+
+app.put("/api/profile", (req, res) => {
+  const { name, email, phone, linkedin, education, awards, master_profile } = req.body;
+  db.saveProfile({
+    name,
+    email,
+    phone,
+    linkedin,
+    education,
+    awards,
+    masterProfile: master_profile,
+  });
+  res.json({ ok: true });
 });
 
 // Catch-all: serve frontend

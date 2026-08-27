@@ -16,15 +16,23 @@
 }
 body{font-family:var(--font-body);background:var(--paper);color:var(--ink);font-size:14px;line-height:1.6;min-height:100vh}
 
-.shell{display:grid;grid-template-columns:1fr 1fr;min-height:100vh}
+/* Top-level view switcher */
+.view-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:14px 28px;border-bottom:1px solid var(--border);background:var(--paper)}
+.view-bar-logo{font-family:var(--font-display);font-size:20px;color:var(--ink)}
+.view-bar-logo span{color:var(--accent)}
+.view-tabs{display:flex;gap:6px}
+.view-tab{padding:8px 16px;border-radius:var(--radius);font-family:var(--font-body);font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--ink3);transition:all .15s}
+.view-tab.active{background:var(--accent);color:#fff}
+.view-tab:not(.active):hover{background:var(--surface);color:var(--ink)}
+
+.shell{display:grid;grid-template-columns:1fr 1fr;min-height:calc(100vh - 57px)}
 .pane{padding:28px;overflow-y:auto}
 .pane-left{border-right:1px solid var(--border);background:var(--paper)}
 .pane-right{background:var(--surface)}
 
-.app-header{display:flex;align-items:baseline;gap:10px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border)}
-.app-logo{font-family:var(--font-display);font-size:22px;color:var(--ink)}
-.app-logo span{color:var(--accent)}
-.app-tagline{font-size:11px;color:var(--ink3);letter-spacing:.04em;text-transform:uppercase}
+.view-history,.view-profile{padding:28px;background:var(--surface);min-height:calc(100vh - 57px)}
+.hist-wrap,.profile-wrap{max-width:1100px;margin:0 auto}
+.profile-wrap{max-width:700px}
 
 /* API key banner */
 .key-banner{display:none;align-items:center;gap:10px;background:#fff8e1;border:1px solid #ffe082;border-radius:var(--radius);padding:10px 14px;margin-bottom:18px;font-size:12px;color:#7c5e00}
@@ -81,12 +89,20 @@ textarea:focus{border-color:var(--accent2)}
 .rv-skills li{font-size:10pt;line-height:1.6}
 .rv-skills li::before{content:"• "}
 
+/* Cover letter template (reuses .rv/.rv-head/.rv-name/.rv-contact for the letterhead) */
+.cl-date{margin:10px 0 14px;font-size:10.5pt}
+.cl-recipient{margin-bottom:14px;font-size:10.5pt;line-height:1.5}
+.cl-greeting{margin-bottom:10px;font-size:10.5pt}
+.cl-body p{margin-bottom:10px;font-size:10.5pt;line-height:1.6;text-align:justify}
+.cl-closing{margin-top:16px;font-size:10.5pt;line-height:1.8}
+
 /* PDF page-break prevention */
 .rv-section{page-break-inside:avoid}
 .rv-subhead{page-break-inside:avoid}
 .rv-bullets li{page-break-inside:avoid}
 .rv-subitems li{page-break-inside:avoid}
 .rv-skills li{page-break-inside:avoid}
+.cl-body p{page-break-inside:avoid}
 
 .analysis-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
 .analysis-title{font-weight:500;font-size:13px;margin-bottom:8px;color:var(--ink)}
@@ -112,33 +128,51 @@ textarea:focus{border-color:var(--accent2)}
 .tab{flex:1;padding:8px;text-align:center;font-size:12px;font-weight:500;cursor:pointer;color:var(--ink3);border:none;background:transparent;transition:all .15s}
 .tab.active{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--border)}
 
+/* History list */
+.hist-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.hist-table th,.hist-table td{padding:10px 12px;text-align:left;font-size:12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.hist-table th{background:var(--surface);font-weight:500;color:var(--ink2);text-transform:uppercase;letter-spacing:.04em;font-size:10px}
+.hist-table tr:last-child td{border-bottom:none}
+.hist-status-select{font-family:inherit;font-size:12px;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--ink)}
+.hist-pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;background:var(--surface);color:var(--ink2)}
+
+/* Profile form */
+.prof-row{border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:10px;background:#fff}
+.prof-row-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.prof-row input{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:12px;font-family:inherit;outline:none;margin-bottom:6px}
+.prof-row-remove{font-size:11px;color:#c62828;background:none;border:none;cursor:pointer;padding:0}
+
 @media(max-width:700px){.shell{grid-template-columns:1fr}.pane-right{border-top:1px solid var(--border)}}
 </style>
 </head>
 <body>
-<div class="shell">
+
+<div class="view-bar">
+  <div class="view-bar-logo">resume<span>.</span>ai</div>
+  <div class="view-tabs">
+    <button class="view-tab active" id="viewBtnGenerate" onclick="switchView('generate')">Generate</button>
+    <button class="view-tab" id="viewBtnHistory" onclick="switchView('history')">History</button>
+    <button class="view-tab" id="viewBtnProfile" onclick="switchView('profile')">Profile</button>
+  </div>
+</div>
+
+<div class="shell" id="viewGenerate">
 
 <!-- LEFT -->
 <div class="pane pane-left">
-  <div class="app-header">
-    <div class="app-logo">resume<span>.</span>ai</div>
-    <div class="app-tagline">ATS optimizer</div>
-  </div>
-
   <div class="key-banner" id="keyBanner">
     ⚠ API key not set. Open <strong>.env</strong> and add your Gemini key from
     <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>,
     then restart the server.
   </div>
 
-  <div style="margin-bottom:20px">
-    <div class="section-label">Your Master Profile</div>
-    <textarea id="profile" rows="10" placeholder="Paste your full profile here..."></textarea>
+  <div class="key-banner" id="noProfileBanner">
+    ⚠ No profile saved yet. Go to the <a href="#" onclick="switchView('profile');return false;">Profile</a> tab and save your details before generating.
   </div>
 
   <div style="margin-bottom:20px">
     <div class="section-label">Job Description</div>
-    <textarea id="jd" rows="10" placeholder="Paste the full job description here..."></textarea>
+    <textarea id="jd" rows="16" placeholder="Paste the full job description here..."></textarea>
   </div>
 
   <div style="margin-bottom:20px;display:flex;gap:12px">
@@ -156,10 +190,27 @@ textarea:focus{border-color:var(--accent2)}
     </div>
   </div>
 
-  <button class="btn btn-primary" id="generateBtn" onclick="generate()">
-    <span>Generate Tailored Resume</span>
-    <span>→</span>
-  </button>
+  <div style="margin-bottom:20px;display:flex;gap:12px">
+    <div style="flex:1">
+      <div class="section-label">Recruiter Name</div>
+      <input id="recruiterName" type="text" placeholder="e.g. Jane Smith" style="width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--ink);outline:none">
+    </div>
+    <div style="flex:1">
+      <div class="section-label">Recruiter Title</div>
+      <input id="recruiterTitle" type="text" placeholder="e.g. Senior Technical Recruiter" style="width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--ink);outline:none">
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;flex-wrap:wrap">
+    <button class="btn btn-primary" id="generateBtn" onclick="generate()">
+      <span>Generate Tailored Resume</span>
+      <span>→</span>
+    </button>
+    <button class="btn btn-ghost" id="generateCoverBtn" onclick="generateCoverLetter()">
+      <span>Generate Cover Letter</span>
+      <span>→</span>
+    </button>
+  </div>
 </div>
 
 <!-- RIGHT -->
@@ -173,6 +224,7 @@ textarea:focus{border-color:var(--accent2)}
     <div class="tab-row">
       <button class="tab active" id="tab-btn-resume" onclick="switchTab('resume')">Resume</button>
       <button class="tab" id="tab-btn-analysis" onclick="switchTab('analysis')">ATS Analysis</button>
+      <button class="tab" id="tab-btn-cover" onclick="switchTab('cover')">Cover Letter</button>
     </div>
 
     <div id="tab-resume">
@@ -205,6 +257,28 @@ textarea:focus{border-color:var(--accent2)}
         <div id="recommendations" style="font-size:13px;color:var(--ink2);line-height:1.8"></div>
       </div>
     </div>
+
+    <div id="tab-cover" style="display:none">
+      <div class="output-header">
+        <div class="output-title">Cover Letter</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="downloadCoverLetterPDF()">↓ PDF</button>
+          <button class="btn btn-ghost btn-sm" id="copyCoverBtn" onclick="copyCoverLetterText()">⎘ Copy</button>
+        </div>
+      </div>
+      <div id="coverLetterEmptyHint" style="padding:40px 20px;text-align:center;color:var(--ink3);font-size:13px">
+        Fill in the recruiter details on the left and click "Generate Cover Letter."
+      </div>
+      <div id="clLoader" class="loader" style="display:none">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <span id="clLoaderText">Reading the job description...</span>
+      </div>
+      <div id="clError" class="error-state" style="display:none">
+        <div class="error-icon">⚠</div>
+        <div id="clErrorMsg"></div>
+      </div>
+      <div class="resume-preview" id="coverLetterOut" style="display:none"></div>
+    </div>
   </div>
 
   <div id="loaderArea" style="display:none">
@@ -222,9 +296,152 @@ textarea:focus{border-color:var(--accent2)}
 
 </div>
 
+<!-- HISTORY VIEW -->
+<div class="view-history" id="viewHistory" style="display:none">
+  <div class="hist-wrap">
+    <div id="historyListWrap">
+      <div class="output-header">
+        <div class="output-title">Application History</div>
+      </div>
+      <div id="historyLoader" class="loader">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <span>Loading history...</span>
+      </div>
+      <div id="historyEmpty" class="empty-state" style="display:none">
+        <div class="empty-icon">◎</div>
+        <div class="empty-text">No applications yet — generate a resume or cover letter to start tracking.</div>
+      </div>
+      <div id="historyError" class="error-state" style="display:none">
+        <div class="error-icon">⚠</div>
+        <div id="historyErrorMsg"></div>
+      </div>
+      <div id="historyTableWrap" style="display:none;overflow-x:auto">
+        <table class="hist-table">
+          <thead><tr><th>Company</th><th>Job Title</th><th>Job ID</th><th>Status</th><th>ATS Score</th><th>Content</th><th>Last Updated</th><th></th></tr></thead>
+          <tbody id="historyTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="historyDetailWrap" style="display:none">
+      <button class="btn btn-ghost btn-sm" onclick="closeHistoryDetail()" style="margin-bottom:16px">← Back to list</button>
+      <div class="output-header">
+        <div>
+          <div class="output-title" id="histDetailTitle"></div>
+          <div style="font-size:12px;color:var(--ink3);margin-top:4px" id="histDetailSubtitle"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="histDetailStatus" class="hist-status-select" onchange="patchHistory(currentHistoryId, {status:this.value})"></select>
+          <button class="btn btn-ghost btn-sm" onclick="loadIntoEditor(currentHistoryId)">Load into Editor</button>
+        </div>
+      </div>
+      <div class="tab-row">
+        <button class="tab active" id="hist-tab-btn-resume" onclick="switchHistTab('resume')">Resume</button>
+        <button class="tab" id="hist-tab-btn-analysis" onclick="switchHistTab('analysis')">ATS Analysis</button>
+        <button class="tab" id="hist-tab-btn-cover" onclick="switchHistTab('cover')">Cover Letter</button>
+        <button class="tab" id="hist-tab-btn-jd" onclick="switchHistTab('jd')">Job Description</button>
+        <button class="tab" id="hist-tab-btn-notes" onclick="switchHistTab('notes')">Notes</button>
+      </div>
+      <div id="hist-tab-resume"><div class="resume-preview" id="histResumeOut"></div></div>
+      <div id="hist-tab-analysis" style="display:none">
+        <div class="analysis-card">
+          <div class="analysis-title">ATS Match Score</div>
+          <div id="histScoreDetail" style="font-size:13px;color:var(--ink2);line-height:1.7"></div>
+        </div>
+        <div class="analysis-card">
+          <div class="analysis-title">✓ Keywords You Match</div>
+          <div id="histMatchedKeywords" class="keyword-pills"></div>
+        </div>
+        <div class="analysis-card">
+          <div class="analysis-title">✗ Missing Keywords</div>
+          <div id="histMissingKeywords" class="keyword-pills"></div>
+        </div>
+        <div class="analysis-card">
+          <div class="analysis-title">Recommendations</div>
+          <div id="histRecommendations" style="font-size:13px;color:var(--ink2);line-height:1.8"></div>
+        </div>
+      </div>
+      <div id="hist-tab-cover" style="display:none"><div class="resume-preview" id="histCoverOut"></div></div>
+      <div id="hist-tab-jd" style="display:none">
+        <pre id="histJdOut" style="white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.7;background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px"></pre>
+      </div>
+      <div id="hist-tab-notes" style="display:none">
+        <textarea id="histNotesInput" rows="10" style="margin-bottom:12px"></textarea>
+        <button class="btn btn-primary btn-sm" onclick="saveHistoryNotes()">Save Notes</button>
+        <span id="histNotesSaved" style="display:none;color:#2e7d32;font-size:12px;margin-left:8px">✓ Saved</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE VIEW -->
+<div class="view-profile" id="viewProfile" style="display:none">
+  <div class="profile-wrap">
+    <div class="output-header">
+      <div class="output-title">Your Profile</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="profileSaved" style="display:none;color:#2e7d32;font-size:12px">✓ Saved</span>
+        <button class="btn btn-primary btn-sm" onclick="saveProfileSettings()">Save Profile</button>
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px;display:flex;gap:12px">
+      <div style="flex:1">
+        <div class="section-label">Name</div>
+        <input id="profName" type="text" placeholder="Your full name" style="width:100%;box-sizing:border-box;background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--ink);outline:none">
+      </div>
+      <div style="flex:1">
+        <div class="section-label">Email</div>
+        <input id="profEmail" type="text" placeholder="you@example.com" style="width:100%;box-sizing:border-box;background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--ink);outline:none">
+      </div>
+    </div>
+    <div style="margin-bottom:20px;display:flex;gap:12px">
+      <div style="flex:1">
+        <div class="section-label">Phone</div>
+        <input id="profPhone" type="text" placeholder="+1-555-0100" style="width:100%;box-sizing:border-box;background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--ink);outline:none">
+      </div>
+      <div style="flex:1">
+        <div class="section-label">LinkedIn URL</div>
+        <input id="profLinkedin" type="text" placeholder="https://linkedin.com/in/you" style="width:100%;box-sizing:border-box;background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--ink);outline:none">
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div class="section-label" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Education</span>
+        <button class="btn btn-ghost btn-sm" onclick="addEducationRow()">+ Add</button>
+      </div>
+      <div id="educationRows"></div>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div class="section-label" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Awards &amp; Certifications</span>
+        <button class="btn btn-ghost btn-sm" onclick="addAwardRow()">+ Add</button>
+      </div>
+      <div id="awardRows"></div>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div class="section-label">Master Profile (experience, skills, projects)</div>
+      <textarea id="profMasterProfile" rows="14" placeholder="Paste your full profile here — this becomes the default on the Generate tab."></textarea>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 let currentResume = '';
+let currentCoverLetter = '';
+let currentHistoryId = null;
+let savedMasterProfile = '';
+let educationData = [];
+let awardsData = [];
+const STATUS_OPTIONS = ['Draft','Applied','Shortlisted','Interview','Offer','Rejected'];
+
+// Personal details — loaded from /api/profile, never hardcoded in this file
+let PROFILE = { header: { name: '', email: '', phone: '', linkedin: '' }, education: [], awards: [] };
+
 const loaderMessages = [
   'Analyzing job description...',
   'Extracting ATS keywords...',
@@ -233,8 +450,14 @@ const loaderMessages = [
   'Calculating ATS score...',
   'Finalizing your resume...'
 ];
+const clLoaderMessages = [
+  'Reading the job description...',
+  'Finding your strongest fit points...',
+  'Drafting your cover letter...',
+  'Polishing tone...'
+];
 
-// Check API key on load
+// Check API key + load saved profile on startup
 window.addEventListener('load', async () => {
   try {
     const res = await fetch('/api/health');
@@ -243,19 +466,45 @@ window.addEventListener('load', async () => {
       document.getElementById('keyBanner').classList.add('show');
     }
   } catch(e) {}
+  loadProfileSettings();
 });
 
+/* ---------------- View switching (Generate / History / Profile) ---------------- */
+
+function switchView(view) {
+  document.getElementById('viewGenerate').style.display = view === 'generate' ? 'grid' : 'none';
+  document.getElementById('viewHistory').style.display = view === 'history' ? 'block' : 'none';
+  document.getElementById('viewProfile').style.display = view === 'profile' ? 'block' : 'none';
+  document.getElementById('viewBtnGenerate').classList.toggle('active', view === 'generate');
+  document.getElementById('viewBtnHistory').classList.toggle('active', view === 'history');
+  document.getElementById('viewBtnProfile').classList.toggle('active', view === 'profile');
+  if (view === 'history') {
+    closeHistoryDetail();
+    loadHistoryList();
+  }
+}
+
+function updateNoProfileBanner() {
+  document.getElementById('noProfileBanner').classList.toggle('show', !savedMasterProfile);
+}
+
 function switchTab(tab) {
-  ['resume','analysis'].forEach(t => {
+  ['resume','analysis','cover'].forEach(t => {
     document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none';
     document.getElementById('tab-btn-' + t).classList.toggle('active', t === tab);
   });
 }
 
+/* ---------------- Resume generation ---------------- */
+
 async function generate() {
-  const profile = document.getElementById('profile').value.trim();
+  if (!savedMasterProfile) { alert('Please save your profile in the Profile tab before generating.'); switchView('profile'); return; }
   const jd = document.getElementById('jd').value.trim();
-  if (!profile || !jd) { alert('Please fill in both your profile and the job description.'); return; }
+  if (!jd) { alert('Please paste the job description.'); return; }
+
+  const company = document.getElementById('company').value.trim();
+  const jobTitle = document.getElementById('jobTitle').value.trim();
+  const jobId = document.getElementById('jobId').value.trim();
 
   document.getElementById('emptyState').style.display = 'none';
   document.getElementById('outputArea').style.display = 'none';
@@ -270,11 +519,10 @@ async function generate() {
   }, 1800);
 
   try {
-    // Calls our local Express server — no CORS, no exposed API key
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ profile, jd })
+      body: JSON.stringify({ jd, company, jobTitle, jobId })
     });
 
     clearInterval(interval);
@@ -299,40 +547,18 @@ function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+function escAttr(s) {
+  return esc(s).replace(/"/g,'&quot;');
+}
+
 function mdBold(s) {
   return esc(s).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 }
 
-// --- Static resume data (never changes, no tokens wasted) ---
-const STATIC = {
-  header: {
-    name: 'Sanjay S',
-    linkedin: 'https://www.linkedin.com/in/thisissanjays/',
-    email: 'sanjaysasidharan2013@gmail.com',
-    phone: '+91-9847370823'
-  },
-  education: [
-    {
-      org: 'Govt. Model Engineering College', location: 'Kochi, India',
-      role: 'Electronics and Communication Engineering;  GPA: 8.64',
-      dates: 'Aug. 2018 \u2013 Aug. 2022',
-      bullets: [{ title: 'Major contributions', desc: 'Spearheaded Training and Placement Cell initiatives, IETE Department Head and Marketing associate for Excel- Flagship College Fest' }]
-    },
-    {
-      org: 'Bharatiya Vidya Bhavan', location: 'Kochi, India',
-      role: 'Computer-Math Major (CBSE);  Score: 90.8',
-      dates: 'July. 2016 \u2013 July. 2018',
-      bullets: [{ title: 'Major contributions', desc: 'Led Socio-entreprenuership project to purify Canals, Participated and led a team in TIE bootcamp' }]
-    }
-  ],
-  awards: [
-    { title: 'Brightest Award', desc: 'Recognized with the \u201cBrightest\u201d Award from the client for effective leadership and proactive mastery of new technologies.' },
-    { title: 'Applause and Spot Award', desc: 'Recognized with both the Applause Award and a Spot Award by Deloitte USI for significant contributions.' },
-    { title: 'AWS Certified Developer Associate', desc: 'July 2023' },
-    { title: 'AWS Certified Cloud Practitioner', desc: 'July 2023' },
-    { title: 'Microsoft Certified: Azure Fundamentals (AZ-900)', desc: 'June 2023' }
-  ]
-};
+function fileNamePrefix() {
+  const first = (PROFILE.header.name || '').trim().split(/\s+/)[0] || '';
+  return first.replace(/[^a-zA-Z0-9]/g, '') || 'Resume';
+}
 
 function section(title, inner) {
   return `<div class="rv-section"><div class="rv-section-title">${title}</div>${inner}</div>`;
@@ -361,10 +587,10 @@ function skillsList(items) {
 
 function buildResumeHTML(data) {
   if (!data) return '';
-  const h = STATIC.header;
+  const h = PROFILE.header;
   let html = `<div class="rv">`;
 
-  // Header
+  // Header (from Profile tab)
   html += `<table class="rv-head"><tr>
     <td><div class="rv-name"><a href="${esc(h.linkedin)}">${esc(h.name)}</a></div>
         <div class="rv-contact"><a href="${esc(h.linkedin)}">${esc(h.linkedin)}</a></div></td>
@@ -383,25 +609,71 @@ function buildResumeHTML(data) {
   if (data.skills && data.skills.length)
     html += section('Programming Skills', skillsList(data.skills));
 
-  // Education (hardcoded)
-  html += section('Education', subheadingList(STATIC.education));
+  // Education (from Profile tab)
+  if (PROFILE.education && PROFILE.education.length)
+    html += section('Education', subheadingList(PROFILE.education));
 
-  // Awards and Certification (hardcoded)
-  html += section('Awards and Certification', subitemList(STATIC.awards));
+  // Awards and Certification (from Profile tab)
+  if (PROFILE.awards && PROFILE.awards.length)
+    html += section('Awards and Certification', subitemList(PROFILE.awards));
 
   html += `</div>`;
   return html;
 }
 
+function buildResumePlainText(data) {
+  const h = PROFILE.header;
+  let lines = [];
+  lines.push(h.name);
+  lines.push([h.linkedin, h.email, h.phone].filter(Boolean).join(' | '));
+  lines.push('');
+
+  if (data.experience && data.experience.length) {
+    lines.push('EXPERIENCE');
+    data.experience.forEach(e => {
+      lines.push(`${e.org} — ${e.role} | ${e.location} | ${e.dates}`);
+      (e.bullets||[]).forEach(b => lines.push(`- ${b.title}: ${b.desc}`));
+      lines.push('');
+    });
+  }
+
+  if (data.projects && data.projects.length) {
+    lines.push('PROJECTS');
+    data.projects.forEach(p => lines.push(`- ${p.title}: ${p.desc}`));
+    lines.push('');
+  }
+
+  if (data.skills && data.skills.length) {
+    lines.push('PROGRAMMING SKILLS');
+    data.skills.forEach(s => lines.push(`${s.label}: ${s.value}`));
+    lines.push('');
+  }
+
+  if (PROFILE.education && PROFILE.education.length) {
+    lines.push('EDUCATION');
+    PROFILE.education.forEach(e => {
+      lines.push(`${e.org} — ${e.role} | ${e.location} | ${e.dates}`);
+      (e.bullets||[]).forEach(b => lines.push(`- ${b.title}: ${b.desc}`));
+    });
+    lines.push('');
+  }
+
+  if (PROFILE.awards && PROFILE.awards.length) {
+    lines.push('AWARDS AND CERTIFICATION');
+    PROFILE.awards.forEach(a => lines.push(`- ${a.title}${a.desc ? ': ' + a.desc : ''}`));
+  }
+
+  return lines.join('\n').trim();
+}
+
 function renderOutput(data) {
-  currentResume = data.resume_plain || '';
+  currentResume = buildResumePlainText(data);
 
   const score = data.ats_score || 0;
   const cls = score >= 75 ? 'score-high' : score >= 50 ? 'score-mid' : 'score-low';
   document.getElementById('scoreDisplay').innerHTML = `<span class="score-badge ${cls}">ATS ${score}/100</span>`;
   try {
     const html = buildResumeHTML(data);
-    console.log('[resume.ai] buildResumeHTML length:', html.length);
     document.getElementById('resumeOut').innerHTML = html;
   } catch(err) {
     console.error('[resume.ai] buildResumeHTML error:', err);
@@ -415,15 +687,17 @@ function renderOutput(data) {
   document.getElementById('loaderArea').style.display = 'none';
   document.getElementById('outputArea').style.display = 'block';
   document.getElementById('generateBtn').disabled = false;
+  switchTab('resume');
 }
 
 function downloadPDF() {
   const el = document.getElementById('resumeOut');
   if (!el || !el.innerHTML.trim()) return;
+  const prefix = fileNamePrefix();
   const company = (document.getElementById('company').value.trim() || 'Company').replace(/\s+/g, '-');
   const role = (document.getElementById('jobTitle').value.trim() || 'Role').replace(/\s+/g, '-');
   const jobId = document.getElementById('jobId').value.trim().replace(/\s+/g, '-');
-  const filename = jobId ? `Sanjay-${company}-${role}-${jobId}.pdf` : `Sanjay-${company}-${role}.pdf`;
+  const filename = jobId ? `${prefix}-${company}-${role}-${jobId}.pdf` : `${prefix}-${company}-${role}.pdf`;
   html2pdf().set({
     margin: [10, 14],
     filename,
@@ -439,6 +713,393 @@ function copyText() {
   const btn = document.getElementById('copyBtn');
   btn.textContent = '✓ Copied';
   setTimeout(() => btn.textContent = '⎘ Copy', 2000);
+}
+
+/* ---------------- Cover letter generation ---------------- */
+
+function setCoverLetterState(state) {
+  document.getElementById('coverLetterEmptyHint').style.display = state === 'empty' ? 'block' : 'none';
+  document.getElementById('clLoader').style.display = state === 'loading' ? 'flex' : 'none';
+  document.getElementById('clError').style.display = state === 'error' ? 'flex' : 'none';
+  document.getElementById('coverLetterOut').style.display = state === 'ready' ? 'block' : 'none';
+}
+
+async function generateCoverLetter() {
+  if (!savedMasterProfile) { alert('Please save your profile in the Profile tab before generating.'); switchView('profile'); return; }
+  const jd = document.getElementById('jd').value.trim();
+  if (!jd) { alert('Please paste the job description.'); return; }
+
+  const recruiterName = document.getElementById('recruiterName').value.trim();
+  const recruiterTitle = document.getElementById('recruiterTitle').value.trim();
+  const company = document.getElementById('company').value.trim();
+  const jobTitle = document.getElementById('jobTitle').value.trim();
+  const jobId = document.getElementById('jobId').value.trim();
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('outputArea').style.display = 'block';
+  switchTab('cover');
+  setCoverLetterState('loading');
+  document.getElementById('generateCoverBtn').disabled = true;
+
+  let msgIdx = 0;
+  const interval = setInterval(() => {
+    msgIdx = (msgIdx + 1) % clLoaderMessages.length;
+    document.getElementById('clLoaderText').textContent = clLoaderMessages[msgIdx];
+  }, 1800);
+
+  try {
+    const res = await fetch('/api/generate-cover-letter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jd, company, jobTitle, jobId, recruiterName, recruiterTitle })
+    });
+    clearInterval(interval);
+    if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Server error'); }
+    const data = await res.json();
+    renderCoverLetterOutput(data, recruiterName, recruiterTitle, company);
+  } catch (e) {
+    clearInterval(interval);
+    setCoverLetterState('error');
+    document.getElementById('clErrorMsg').textContent = e.message || 'Something went wrong. Please try again.';
+  } finally {
+    document.getElementById('generateCoverBtn').disabled = false;
+  }
+}
+
+function buildCoverLetterHTML(letterBody, recruiterName, recruiterTitle, company) {
+  const h = PROFILE.header;
+  const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const greetName = recruiterName || 'Hiring Manager';
+
+  let html = `<div class="rv cl">`;
+  html += `<table class="rv-head"><tr>
+    <td><div class="rv-name"><a href="${esc(h.linkedin)}">${esc(h.name)}</a></div>
+        <div class="rv-contact"><a href="${esc(h.linkedin)}">${esc(h.linkedin)}</a></div></td>
+    <td><div class="rv-contact">Email : <a href="mailto:${esc(h.email)}">${esc(h.email)}</a><br>Mobile : ${esc(h.phone)}</div></td>
+  </tr></table>`;
+  html += `<div class="cl-date">${esc(dateStr)}</div>`;
+
+  let recipient = `<div>${esc(greetName)}</div>`;
+  if (recruiterTitle) recipient += `<div>${esc(recruiterTitle)}</div>`;
+  if (company) recipient += `<div>${esc(company)}</div>`;
+  html += `<div class="cl-recipient">${recipient}</div>`;
+
+  html += `<div class="cl-greeting">Dear ${esc(greetName)},</div>`;
+
+  const paragraphs = (letterBody || '').split(/\n\s*\n/).filter(p => p.trim());
+  html += `<div class="cl-body">${paragraphs.map(p => `<p>${mdBold(p.trim())}</p>`).join('')}</div>`;
+
+  html += `<div class="cl-closing">Sincerely,<br>${esc(h.name)}</div>`;
+  html += `</div>`;
+  return html;
+}
+
+function buildCoverLetterPlainText(letterBody, recruiterName, company) {
+  const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  return `${dateStr}\n\nDear ${recruiterName || 'Hiring Manager'},\n\n${letterBody}\n\nSincerely,\n${PROFILE.header.name}`;
+}
+
+function renderCoverLetterOutput(data, recruiterName, recruiterTitle, company) {
+  document.getElementById('coverLetterOut').innerHTML = buildCoverLetterHTML(data.letter_body, recruiterName, recruiterTitle, company);
+  currentCoverLetter = buildCoverLetterPlainText(data.letter_body, recruiterName, company);
+  setCoverLetterState('ready');
+}
+
+function downloadCoverLetterPDF() {
+  const el = document.getElementById('coverLetterOut');
+  if (!el || !el.innerHTML.trim()) return;
+  const prefix = fileNamePrefix();
+  const company = (document.getElementById('company').value.trim() || 'Company').replace(/\s+/g, '-');
+  const role = (document.getElementById('jobTitle').value.trim() || 'Role').replace(/\s+/g, '-');
+  const jobId = document.getElementById('jobId').value.trim().replace(/\s+/g, '-');
+  const filename = jobId ? `${prefix}-CoverLetter-${company}-${role}-${jobId}.pdf` : `${prefix}-CoverLetter-${company}-${role}.pdf`;
+  html2pdf().set({
+    margin: [10, 14],
+    filename,
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'] }
+  }).from(el).save();
+}
+
+function copyCoverLetterText() {
+  if (!currentCoverLetter) return;
+  navigator.clipboard.writeText(currentCoverLetter).catch(() => {});
+  const btn = document.getElementById('copyCoverBtn');
+  btn.textContent = '✓ Copied';
+  setTimeout(() => btn.textContent = '⎘ Copy', 2000);
+}
+
+/* ---------------- Application history ---------------- */
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+
+function statusOptionsHTML(selected) {
+  return STATUS_OPTIONS.map(s => `<option value="${s}" ${s===selected?'selected':''}>${s}</option>`).join('');
+}
+
+async function loadHistoryList() {
+  document.getElementById('historyTableWrap').style.display = 'none';
+  document.getElementById('historyEmpty').style.display = 'none';
+  document.getElementById('historyError').style.display = 'none';
+  document.getElementById('historyLoader').style.display = 'flex';
+  try {
+    const res = await fetch('/api/history');
+    if (!res.ok) throw new Error('Failed to load history');
+    const data = await res.json();
+    document.getElementById('historyLoader').style.display = 'none';
+    if (!data.applications || !data.applications.length) {
+      document.getElementById('historyEmpty').style.display = 'flex';
+      return;
+    }
+    renderHistoryList(data.applications);
+    document.getElementById('historyTableWrap').style.display = 'block';
+  } catch(e) {
+    document.getElementById('historyLoader').style.display = 'none';
+    document.getElementById('historyError').style.display = 'flex';
+    document.getElementById('historyErrorMsg').textContent = 'Failed to load history.';
+  }
+}
+
+function renderHistoryList(rows) {
+  document.getElementById('historyTableBody').innerHTML = rows.map(r => {
+    const content = r.has_resume && r.has_cover_letter ? 'Both' : r.has_resume ? 'Resume' : r.has_cover_letter ? 'Cover Letter' : '—';
+    const score = typeof r.resume_ats_score === 'number' ? r.resume_ats_score : null;
+    const scoreCls = score===null ? '' : score>=75?'score-high':score>=50?'score-mid':'score-low';
+    return `<tr>
+      <td>${esc(r.company)||'—'}</td>
+      <td>${esc(r.job_title)||'—'}</td>
+      <td>${esc(r.job_id)||'—'}</td>
+      <td><select class="hist-status-select" onchange="patchHistory(${r.id}, {status:this.value})">${statusOptionsHTML(r.status)}</select></td>
+      <td>${score===null ? '—' : `<span class="score-badge ${scoreCls}">${score}</span>`}</td>
+      <td><span class="hist-pill">${content}</span></td>
+      <td>${formatDate(r.updated_at)}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openHistoryDetail(${r.id})">View</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function patchHistory(id, body) {
+  if (id == null) return false;
+  try {
+    const res = await fetch(`/api/history/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('Update failed');
+    if (currentHistoryId === id && body.status !== undefined) {
+      document.getElementById('histDetailStatus').value = body.status;
+    }
+    return true;
+  } catch(e) {
+    alert('Failed to update application.');
+    return false;
+  }
+}
+
+async function openHistoryDetail(id) {
+  try {
+    const res = await fetch(`/api/history/${id}`);
+    if (!res.ok) throw new Error('Not found');
+    const row = await res.json();
+    currentHistoryId = id;
+    renderHistoryDetail(row);
+    document.getElementById('historyListWrap').style.display = 'none';
+    document.getElementById('historyDetailWrap').style.display = 'block';
+  } catch(e) {
+    alert('Failed to load application.');
+  }
+}
+
+function closeHistoryDetail() {
+  currentHistoryId = null;
+  document.getElementById('historyDetailWrap').style.display = 'none';
+  document.getElementById('historyListWrap').style.display = 'block';
+}
+
+function switchHistTab(tab) {
+  ['resume','analysis','cover','jd','notes'].forEach(t => {
+    document.getElementById('hist-tab-' + t).style.display = t === tab ? 'block' : 'none';
+    document.getElementById('hist-tab-btn-' + t).classList.toggle('active', t === tab);
+  });
+}
+
+function renderHistoryDetail(row) {
+  document.getElementById('histDetailTitle').textContent = `${row.company || 'Untitled'} — ${row.job_title || 'Role'}`;
+  document.getElementById('histDetailSubtitle').textContent = row.job_id ? `Job ID: ${row.job_id}` : '';
+  document.getElementById('histDetailStatus').innerHTML = statusOptionsHTML(row.status);
+
+  document.getElementById('histResumeOut').innerHTML = row.resume
+    ? buildResumeHTML(row.resume)
+    : '<div style="padding:20px;color:var(--ink3);font-size:13px">No resume generated for this application yet.</div>';
+
+  if (row.resume) {
+    const score = row.resume.ats_score || 0;
+    const cls = score >= 75 ? 'score-high' : score >= 50 ? 'score-mid' : 'score-low';
+    document.getElementById('histScoreDetail').innerHTML = `<span class="score-badge ${cls}">ATS ${score}/100</span><div style="margin-top:8px">${esc(row.resume.score_reason||'')}</div>`;
+    document.getElementById('histMatchedKeywords').innerHTML = (row.resume.matched_keywords||[]).map(k=>`<span class="pill pill-match">${esc(k)}</span>`).join('');
+    document.getElementById('histMissingKeywords').innerHTML = (row.resume.missing_keywords||[]).map(k=>`<span class="pill pill-miss">${esc(k)}</span>`).join('');
+    document.getElementById('histRecommendations').innerHTML = esc(row.resume.recommendations||'').replace(/\n/g,'<br>');
+  } else {
+    document.getElementById('histScoreDetail').innerHTML = '';
+    document.getElementById('histMatchedKeywords').innerHTML = '';
+    document.getElementById('histMissingKeywords').innerHTML = '';
+    document.getElementById('histRecommendations').innerHTML = 'No resume generated for this application yet.';
+  }
+
+  document.getElementById('histCoverOut').innerHTML = row.cover_letter_body
+    ? buildCoverLetterHTML(row.cover_letter_body, row.recruiter_name, row.recruiter_title, row.company)
+    : '<div style="padding:20px;color:var(--ink3);font-size:13px">No cover letter generated for this application yet.</div>';
+
+  document.getElementById('histJdOut').textContent = row.jd_snapshot || '(no job description saved)';
+
+  document.getElementById('histNotesInput').value = row.notes || '';
+
+  switchHistTab('resume');
+}
+
+async function saveHistoryNotes() {
+  if (currentHistoryId == null) return;
+  const notes = document.getElementById('histNotesInput').value;
+  const ok = await patchHistory(currentHistoryId, { notes });
+  if (ok) {
+    const saved = document.getElementById('histNotesSaved');
+    saved.style.display = 'inline';
+    setTimeout(() => saved.style.display = 'none', 2000);
+  }
+}
+
+async function loadIntoEditor(id) {
+  if (id == null) return;
+  try {
+    const res = await fetch(`/api/history/${id}`);
+    if (!res.ok) throw new Error('Not found');
+    const row = await res.json();
+    document.getElementById('jd').value = row.jd_snapshot || '';
+    document.getElementById('company').value = row.company || '';
+    document.getElementById('jobTitle').value = row.job_title || '';
+    document.getElementById('jobId').value = row.job_id || '';
+    document.getElementById('recruiterName').value = row.recruiter_name || '';
+    document.getElementById('recruiterTitle').value = row.recruiter_title || '';
+    document.getElementById('emptyState').style.display = 'flex';
+    document.getElementById('outputArea').style.display = 'none';
+    switchView('generate');
+  } catch(e) {
+    alert('Failed to load application into editor.');
+  }
+}
+
+/* ---------------- Profile settings ---------------- */
+
+async function loadProfileSettings() {
+  try {
+    const res = await fetch('/api/profile');
+    const data = await res.json();
+    PROFILE = {
+      header: { name: data.name || '', email: data.email || '', phone: data.phone || '', linkedin: data.linkedin || '' },
+      education: data.education || [],
+      awards: data.awards || []
+    };
+    document.getElementById('profName').value = data.name || '';
+    document.getElementById('profEmail').value = data.email || '';
+    document.getElementById('profPhone').value = data.phone || '';
+    document.getElementById('profLinkedin').value = data.linkedin || '';
+    document.getElementById('profMasterProfile').value = data.master_profile || '';
+    educationData = data.education || [];
+    awardsData = data.awards || [];
+    renderEducationRows();
+    renderAwardRows();
+    savedMasterProfile = data.master_profile || '';
+    updateNoProfileBanner();
+  } catch(e) {
+    console.error('[resume.ai] profile load error:', e);
+  }
+}
+
+async function saveProfileSettings() {
+  const body = {
+    name: document.getElementById('profName').value.trim(),
+    email: document.getElementById('profEmail').value.trim(),
+    phone: document.getElementById('profPhone').value.trim(),
+    linkedin: document.getElementById('profLinkedin').value.trim(),
+    education: educationData,
+    awards: awardsData,
+    master_profile: document.getElementById('profMasterProfile').value
+  };
+  try {
+    const res = await fetch('/api/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('Save failed');
+    savedMasterProfile = body.master_profile;
+    updateNoProfileBanner();
+    PROFILE = {
+      header: { name: body.name, email: body.email, phone: body.phone, linkedin: body.linkedin },
+      education: body.education,
+      awards: body.awards
+    };
+    const saved = document.getElementById('profileSaved');
+    saved.style.display = 'inline';
+    setTimeout(() => saved.style.display = 'none', 2000);
+  } catch(e) {
+    alert('Failed to save profile.');
+  }
+}
+
+function renderEducationRows() {
+  document.getElementById('educationRows').innerHTML = educationData.length ? educationData.map((e, i) => `
+    <div class="prof-row">
+      <div class="prof-row-grid">
+        <input placeholder="Institution" value="${escAttr(e.org)}" onchange="educationData[${i}].org=this.value">
+        <input placeholder="Location" value="${escAttr(e.location)}" onchange="educationData[${i}].location=this.value">
+        <input placeholder="Degree / Role" value="${escAttr(e.role)}" onchange="educationData[${i}].role=this.value">
+        <input placeholder="Dates" value="${escAttr(e.dates)}" onchange="educationData[${i}].dates=this.value">
+      </div>
+      <input placeholder="Highlights (optional)" value="${escAttr((e.bullets&&e.bullets[0])?e.bullets[0].desc:'')}" onchange="setEducationBullet(${i}, this.value)">
+      <button class="prof-row-remove" onclick="removeEducationRow(${i})">Remove</button>
+    </div>
+  `).join('') : '<div style="font-size:12px;color:var(--ink3);padding:8px 0">No education entries yet.</div>';
+}
+
+function addEducationRow() {
+  educationData.push({ org: '', location: '', role: '', dates: '', bullets: [] });
+  renderEducationRows();
+}
+
+function removeEducationRow(i) {
+  educationData.splice(i, 1);
+  renderEducationRows();
+}
+
+function setEducationBullet(i, val) {
+  educationData[i].bullets = val ? [{ title: 'Highlights', desc: val }] : [];
+}
+
+function renderAwardRows() {
+  document.getElementById('awardRows').innerHTML = awardsData.length ? awardsData.map((a, i) => `
+    <div class="prof-row">
+      <input placeholder="Title" value="${escAttr(a.title)}" onchange="awardsData[${i}].title=this.value">
+      <input placeholder="Description / Date" value="${escAttr(a.desc)}" onchange="awardsData[${i}].desc=this.value">
+      <button class="prof-row-remove" onclick="removeAwardRow(${i})">Remove</button>
+    </div>
+  `).join('') : '<div style="font-size:12px;color:var(--ink3);padding:8px 0">No awards yet.</div>';
+}
+
+function addAwardRow() {
+  awardsData.push({ title: '', desc: '' });
+  renderAwardRows();
+}
+
+function removeAwardRow(i) {
+  awardsData.splice(i, 1);
+  renderAwardRows();
 }
 </script>
 </body>
