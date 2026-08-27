@@ -50,7 +50,7 @@ app.get("/api/health", (req, res) => {
 // Main resume generation endpoint
 app.post("/api/generate", async (req, res) => {
   const { jd, company, jobTitle, jobId } = req.body;
-  const { master_profile: profile } = db.getProfile();
+  const { master_profile: profile } = await db.getProfile();
 
   if (!profile) {
     return res
@@ -128,7 +128,7 @@ Respond with ONLY a valid JSON object (no markdown, no backticks) with this exac
     });
 
     try {
-      db.upsertResume({ company, jobTitle, jobId, profile, jd, resumeData: parsed });
+      await db.upsertResume({ company, jobTitle, jobId, profile, jd, resumeData: parsed });
     } catch (dbErr) {
       console.error("History write error (resume):", dbErr.message);
     }
@@ -145,7 +145,7 @@ Respond with ONLY a valid JSON object (no markdown, no backticks) with this exac
 // Cover letter generation endpoint
 app.post("/api/generate-cover-letter", async (req, res) => {
   const { jd, company, jobTitle, jobId, recruiterName, recruiterTitle } = req.body;
-  const { master_profile: profile } = db.getProfile();
+  const { master_profile: profile } = await db.getProfile();
 
   if (!profile) {
     return res
@@ -212,7 +212,7 @@ Respond with ONLY a valid JSON object (no markdown, no backticks) with this exac
     });
 
     try {
-      db.upsertCoverLetter({
+      await db.upsertCoverLetter({
         company,
         jobTitle,
         jobId,
@@ -236,20 +236,20 @@ Respond with ONLY a valid JSON object (no markdown, no backticks) with this exac
 });
 
 // Application history endpoints
-app.get("/api/history", (req, res) => {
-  res.json({ applications: db.listApplications() });
+app.get("/api/history", async (req, res) => {
+  res.json({ applications: await db.listApplications() });
 });
 
-app.get("/api/history/:id", (req, res) => {
-  const app_ = db.getApplication(req.params.id);
+app.get("/api/history/:id", async (req, res) => {
+  const app_ = await db.getApplication(req.params.id);
   if (!app_) return res.status(404).json({ error: "Not found" });
   res.json(app_);
 });
 
-app.patch("/api/history/:id", (req, res) => {
+app.patch("/api/history/:id", async (req, res) => {
   const { status, notes } = req.body;
   try {
-    const updated = db.updateApplication(req.params.id, { status, notes });
+    const updated = await db.updateApplication(req.params.id, { status, notes });
     if (!updated) return res.status(404).json({ error: "Not found" });
     res.json({ ok: true });
   } catch (err) {
@@ -258,13 +258,13 @@ app.patch("/api/history/:id", (req, res) => {
 });
 
 // Profile settings endpoints
-app.get("/api/profile", (req, res) => {
-  res.json(db.getProfile());
+app.get("/api/profile", async (req, res) => {
+  res.json(await db.getProfile());
 });
 
-app.put("/api/profile", (req, res) => {
+app.put("/api/profile", async (req, res) => {
   const { name, email, phone, linkedin, education, awards, master_profile } = req.body;
-  db.saveProfile({
+  await db.saveProfile({
     name,
     email,
     phone,
@@ -281,9 +281,16 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
-app.listen(PORT, () => {
-  console.log(`\n✅ resume.ai running at http://localhost:${PORT}`);
-  console.log(
-    `   API key set: ${!!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "your_gemini_api_key_here" ? "✓" : "✗ — add it to .env"}\n`,
-  );
-});
+db.initDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`\n✅ resume.ai running at http://localhost:${PORT}`);
+      console.log(
+        `   API key set: ${!!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "your_gemini_api_key_here" ? "✓" : "✗ — add it to .env"}\n`,
+      );
+    });
+  })
+  .catch((err) => {
+    console.error("Failed to initialize database:", err.message);
+    process.exit(1);
+  });
